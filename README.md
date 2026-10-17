@@ -2,7 +2,9 @@
 
 Interactive browser simulator for spontaneous parametric down-conversion (SPDC) in MgO:PPLN, covering first- and higher-order quasi-phase-matching in a collinear plane-wave model.
 
-Open `index.html` in a browser. It is a single self-contained page with no build step.
+Live at https://abhayasd555.github.io/ppln-spdc-bench/
+
+`index.html` is the landing page and `simulator.html` is the simulator; both share `styles.css`. There is no build step, so open the files in a browser or serve the folder.
 
 ## Features
 
@@ -11,6 +13,7 @@ Open `index.html` in a browser. It is a single self-contained page with no build
 - Fits the poling period to a target, or finds the phase-matching temperature
 - Readouts: period at T, signal/idler wavelengths, CW bandwidth, temperature acceptance, d_eff, spectral purity (Schmidt K)
 - Plots: phase-matching spectrum, temperature tuning curve, joint spectral intensity, temperature acceptance
+- Downloads: each plot as a high-resolution PNG or its data as CSV, or all four plots in one PNG
 
 ## Model
 

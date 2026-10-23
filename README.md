@@ -8,7 +8,7 @@ Live at https://abhayasd555.github.io/ppln-spdc-bench/
 
 ## Features
 
-- Type-0, Type-I and Type-II interactions, with QPM orders m = 1, 3, 5
+- Type-0 (eee), Type-I (ooe) and Type-II (eoo or oeo, user-selectable) polarisation configurations, written signal · idler · pump, with QPM orders m = 1, 3, 5
 - Presets: 775 → 1550 nm, 405 → 810 nm, 532 → 810 + 1550 nm, and 775 → 1550 nm Type-II pulsed
 - Fits the poling period to a target, or finds the phase-matching temperature
 - Readouts: period at T, signal/idler wavelengths, CW bandwidth, temperature acceptance, d_eff, spectral purity (Schmidt K)

@@ -45,12 +45,19 @@
   <div class="field">
     <label>Interaction type</label>
     <div class="seg" role="radiogroup">
-      <label><input type="radio" name="type" id="ty0" value="0" checked><span>Type-0</span></label>
-      <label><input type="radio" name="type" id="ty1" value="1"><span>Type-I</span></label>
-      <label><input type="radio" name="type" id="ty2" value="2"><span>Type-II</span></label>
+      <label><input type="radio" name="type" id="ty0" value="0" checked><span>Type-0<small>eee</small></span></label>
+      <label><input type="radio" name="type" id="ty1" value="1"><span>Type-I<small>ooe</small></span></label>
+      <label><input type="radio" name="type" id="ty2" value="2"><span>Type-II<small>eoo / oeo</small></span></label>
     </div>
-    <div class="polnote" id="polnote"></div>
   </div>
+  <div class="field" id="t2field" hidden>
+    <label>Type-II polarisation <small>signal · idler · pump</small></label>
+    <div class="seg seg2" role="radiogroup">
+      <label><input type="radio" name="t2" id="t2eo" value="eo" checked><span>eoo<small>signal e, idler o</small></span></label>
+      <label><input type="radio" name="t2" id="t2oe" value="oe"><span>oeo<small>signal o, idler e</small></span></label>
+    </div>
+  </div>
+  <div class="polnote" id="polnote"></div>
   <div class="row2">
     <div class="field"><label for="lp">Pump λ <small>nm</small></label><input type="number" id="lp" value="775" step="0.1" min="350" max="2000"></div>
     <div class="field"><label for="bw">Pump BW <small>nm FWHM</small></label><input type="number" id="bw" value="0" step="0.05" min="0"></div>
@@ -133,7 +140,7 @@ f = (T − 24.5)(T + 570.82)</span>
       <p>Quasi-phase-matching with thermal expansion of the grating, Λ(T) = Λ₀[1 + α(T−25) + β(T−25)²], α = 1.54×10⁻⁵ K⁻¹, β = 5.3×10⁻⁹ K⁻²:</p>
       <span class="eq">Δk = 2π [ n_p/λ_p − n_s/λ_s − n_i/λ_i ] − 2π m / Λ(T)
 φ(ω_s, ω_i) = sinc(Δk L / 2)        d_eff = (2/π) d_ij / m</span>
-      <p>Polarisations (pump → signal + idler): Type-0 e → e + e via d₃₃ = 25.3 pm/V; Type-I e → o + o via d₃₁ = 4.85 pm/V; Type-II o → e + o via d₃₁ (= d₁₅ under Kleinman symmetry). The d values are the ones quoted in the guide.</p>
+      <p>Polarisations, labelled signal · idler · pump: Type-0 <b>eee</b> (e → e + e) via d₃₃ = 25.3 pm/V; Type-I <b>ooe</b> (e → o + o) via d₃₁ = 4.85 pm/V; Type-II <b>eoo</b> (o → e + o) or <b>oeo</b> (o → o + e) via d₃₁ (= d₁₅ under Kleinman symmetry). The two Type-II choices swap which photon is extraordinary, so they need different periods away from degeneracy. The d values are the ones quoted in the guide.</p>
       <p>Purity is computed from a 96×96 sampled JSA as Tr(ρ²) = Tr[(JJᵀ)²]/Tr[JJᵀ]², with K = 1/purity. For a CW pump the JSA collapses onto the anti-diagonal; the map is broadened only for display and purity → 0.</p>
       <p>Not modelled: focusing (Boyd–Kleinman / Bennink), absolute pair rates, waveguide dispersion, poling duty-cycle errors, non-collinear emission.</p>
     </div>
@@ -157,11 +164,14 @@ function nidx(lam,T,pol){const s=SM[pol],a=s.a,b=s.b,f=(T-24.5)*(T+570.82),l2=la
 function ngrp(lam,T,pol){const h=1e-4;return nidx(lam,T,pol)-lam*(nidx(lam+h,T,pol)-nidx(lam-h,T,pol))/(2*h);}
 const AL=1.54e-5,BE=5.3e-9;
 const perT=(L0,T)=>{const d=T-25;return L0*(1+AL*d+BE*d*d);};
-const POL={0:['e','e','e'],1:['e','o','o'],2:['o','e','o']};
+// [pump, signal, idler]; Type-II has two signal/idler assignments
+const POL={0:['e','e','e'],1:['e','o','o'],'2eo':['o','e','o'],'2oe':['o','o','e']};
+const polOf=(type,t2)=>POL[type===2?'2'+t2:type];
+const polTag=p=>p[1]+p[2]+p[0]; // signal·idler·pump, e.g. eoo
 const DIJ={0:[25.3,'d₃₃'],1:[4.85,'d₃₁'],2:[4.85,'d₃₁']};
 const TP=2*Math.PI, C_GHZ=299792.458;
-function kmis(ss,si,T,type){const sp=ss+si,p=POL[type];return TP*(nidx(1/sp,T,p[0])*sp-nidx(1/ss,T,p[1])*ss-nidx(1/si,T,p[2])*si);}
-function dk(ss,si,T,P){return kmis(ss,si,T,P.type)-P.sgn*TP*P.m/perT(P.L0,T);}
+function kmis(ss,si,T,p){const sp=ss+si;return TP*(nidx(1/sp,T,p[0])*sp-nidx(1/ss,T,p[1])*ss-nidx(1/si,T,p[2])*si);}
+function dk(ss,si,T,P){return kmis(ss,si,T,P.pol)-P.sgn*TP*P.m/perT(P.L0,T);}
 const sinc=x=>Math.abs(x)<1e-9?1:Math.sin(x)/x;
 function bisect(f,a,b,fa){for(let k=0;k<60;k++){const m=(a+b)/2,fm=f(m);if(fa*fm<=0){b=m}else{a=m;fa=fm}}return (a+b)/2;}
 
@@ -172,7 +182,8 @@ function bisect(f,a,b,fa){for(let k=0;k<60;k++){const m=(a+b)/2,fm=f(m);if(fa*fm
 
 function readP(){
   const type=+document.querySelector('input[name="type"]:checked').value;
-  const P={type,lpnm:+$('lp').value,lsnm:+$('ls').value,bw:Math.max(0,+$('bw').value||0),L0:+$('per').value,m:+$('ord').value,T:+$('Tn').value,Lmm:+$('Ln').value};
+  const t2=document.querySelector('input[name="t2"]:checked').value;
+  const P={type,t2,pol:polOf(type,t2),lpnm:+$('lp').value,lsnm:+$('ls').value,bw:Math.max(0,+$('bw').value||0),L0:+$('per').value,m:+$('ord').value,T:+$('Tn').value,Lmm:+$('Ln').value};
   const errs=[];
   if(!(P.lpnm>=350&&P.lpnm<=2000))errs.push('Pump λ must be 350–2000 nm.');
   if(!(P.L0>0.3))errs.push('Period must be above 0.3 µm.');
@@ -183,7 +194,7 @@ function readP(){
   let sst=P.sp/2;
   if(P.lsnm>P.lpnm*1.001){const s=1000/P.lsnm,i=P.sp-s; if(i>0.2&&s<1/0.35) sst=s; else P.warnT=true;} else P.warnT=true;
   P.sst=sst;P.sit=P.sp-sst;P.linm=1000/P.sit;
-  P.sgn=Math.sign(kmis(P.sst,P.sit,P.T,type))||1;
+  P.sgn=Math.sign(kmis(P.sst,P.sit,P.T,P.pol))||1;
   P.dmax=Math.min(P.sp/2-0.2,1/0.35-P.sp/2);
   return P;
 }
@@ -202,7 +213,9 @@ function scanRoots(P,T,N,sym){
 let RES=null;
 function compute(){
   const P=readP();const msg=$('msg');
-  $('polnote').textContent={0:'pump e → signal e + idler e (all ∥ z)',1:'pump e → signal o + idler o',2:'pump o → signal e + idler o'}[P.type];
+  $('t2field').hidden=P.type!==2;
+  const pp=P.pol;
+  $('polnote').textContent=polTag(pp)+': pump '+pp[0]+' → signal '+pp[1]+' + idler '+pp[2]+(P.type===0?' (all ∥ z)':'');
   if(P.err){msg.textContent=P.err;return;}
   msg.textContent=P.warnT?'Target signal must lie between the pump and 5 µm idler limit; using degenerate point.':'';
   const sym=P.type!==2,sp=P.sp,T=P.T,L=P.Lum;
@@ -282,7 +295,7 @@ function readouts(){
   const chip=$('chip');
   if(R.exact){chip.className='chip ok';chip.textContent='Phase-matched at '+fx(P.T,1)+' °C';}
   else{chip.className='chip warn';chip.textContent='No exact match · nearest |Δk·L/2| = '+fx(Math.abs(R.f0*P.Lum/2)/Math.PI,1)+'π · peak near '+fx(R.Tc,1)+' °C';}
-  const pol=POL[P.type],rows=[['Pump','var(--pump)',pol[0],P.lpnm],['Signal','var(--sig)',pol[1],R.lsc],['Idler','var(--idl)',pol[2],R.lic]];
+  const pol=P.pol,rows=[['Pump','var(--pump)',pol[0],P.lpnm],['Signal','var(--sig)',pol[1],R.lsc],['Idler','var(--idl)',pol[2],R.lic]];
   $('ntab').innerHTML=rows.map(r=>'<tr><td><span class="dot" style="background:'+r[1]+'"></span>'+r[0]+'</td><td>'+(r[2]==='e'?'e (z)':'o (y)')+'</td><td>'+fx(r[3],2)+'</td><td>'+fx(nidx(r[3]/1000,P.T,r[2]),5)+'</td><td>'+fx(ngrp(r[3]/1000,P.T,r[2]),5)+'</td></tr>').join('');
   $('jsaLg').innerHTML=R.pur==null?'<span>CW · line broadened for display</span>':'<span>pump '+fx(P.bw,2)+' nm FWHM</span>';
 }
@@ -380,8 +393,8 @@ $('ls').addEventListener('input',()=>{conj('ls','li');sched();});
 $('li').addEventListener('input',()=>{conj('li','ls');sched();});
 $('lp').addEventListener('input',()=>{conj('ls','li');sched();});
 function fitPeriod(){const P=readP();if(P.err){$('msg').textContent=P.err;return;}
-  const km=Math.abs(kmis(P.sst,P.sit,P.T,P.type));$('per').value=(TP*P.m/km/perT(1,P.T)).toFixed(3);compute();}
-document.querySelectorAll('input[name="type"]').forEach(el=>el.addEventListener('change',fitPeriod));
+  const km=Math.abs(kmis(P.sst,P.sit,P.T,P.pol));$('per').value=(TP*P.m/km/perT(1,P.T)).toFixed(3);compute();}
+document.querySelectorAll('input[name="type"],input[name="t2"]').forEach(el=>el.addEventListener('change',fitPeriod));
 $('ord').addEventListener('change',fitPeriod);
 $('fitP').addEventListener('click',fitPeriod);
 $('fitT').addEventListener('click',()=>{const P=readP();if(P.err)return;
@@ -391,8 +404,8 @@ $('fitT').addEventListener('click',()=>{const P=readP();if(P.err)return;
   const best=R.reduce((a,b)=>Math.abs(b-P.T)<Math.abs(a-P.T)?b:a);
   $('Tn').value=best.toFixed(2);$('Tr').value=Math.min(200,Math.max(20,best));compute();
   $('msg').textContent=best>200?'Phase matching needs '+best.toFixed(1)+' °C, above a typical 200 °C oven.':'';});
-const PRESETS={p1:{type:0,lp:775,bw:0,ls:1550,T:50,L:20},p2:{type:0,lp:405,bw:0,ls:810,T:40,L:10},p3:{type:0,lp:532,bw:0,ls:810,T:60,L:20},p4:{type:2,lp:775,bw:1,ls:1550,T:40,L:30}};
-function applyPreset(k){const p=PRESETS[k];$('ty'+p.type).checked=true;$('lp').value=p.lp;$('bw').value=p.bw;$('ls').value=p.ls;conj('ls','li');$('Tn').value=p.T;$('Tr').value=p.T;$('Ln').value=p.L;$('Lr').value=p.L;$('ord').value=1;fitPeriod();}
+const PRESETS={p1:{type:0,lp:775,bw:0,ls:1550,T:50,L:20},p2:{type:0,lp:405,bw:0,ls:810,T:40,L:10},p3:{type:0,lp:532,bw:0,ls:810,T:60,L:20},p4:{type:2,t2:'eo',lp:775,bw:1,ls:1550,T:40,L:30}};
+function applyPreset(k){const p=PRESETS[k];$('ty'+p.type).checked=true;if(p.t2)$('t2'+p.t2).checked=true;$('lp').value=p.lp;$('bw').value=p.bw;$('ls').value=p.ls;conj('ls','li');$('Tn').value=p.T;$('Tr').value=p.T;$('Ln').value=p.L;$('Lr').value=p.L;$('ord').value=1;fitPeriod();}
 $('preset').addEventListener('change',e=>applyPreset(e.target.value));
 
 new ResizeObserver(()=>draw()).observe(document.querySelector('.grid4'));
@@ -408,8 +421,8 @@ async function saveFile(name,blob){
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
 }
 const PLOTS={spec:['cvSpec','Phase-matching spectrum',drawSpec],tune:['cvTune','Temperature tuning',drawTune],jsa:['cvJSA','Joint spectral intensity',drawJSA],tacc:['cvTacc','Temperature acceptance',drawTacc]};
-function paramLine(){const P=RES.P;return 'λp '+fx(P.lpnm,1)+' nm · '+['Type-0','Type-I','Type-II'][P.type]+' · m = '+P.m+' · Λ₀ '+fx(P.L0,3)+' µm · '+fx(P.T,1)+' °C · L '+fx(P.Lmm,1)+' mm'+(P.bw>0?' · pump '+fx(P.bw,2)+' nm FWHM':' · CW');}
-function slug(){const P=RES.P;return 'ppln_'+fx(P.lpnm,0)+'nm_type'+['0','I','II'][P.type]+'_'+fx(P.T,1).replace('.','p')+'C';}
+function paramLine(){const P=RES.P;return 'λp '+fx(P.lpnm,1)+' nm · '+['Type-0','Type-I','Type-II'][P.type]+' ('+polTag(P.pol)+') · m = '+P.m+' · Λ₀ '+fx(P.L0,3)+' µm · '+fx(P.T,1)+' °C · L '+fx(P.Lmm,1)+' mm'+(P.bw>0?' · pump '+fx(P.bw,2)+' nm FWHM':' · CW');}
+function slug(){const P=RES.P;return 'ppln_'+fx(P.lpnm,0)+'nm_type'+['0','I','II'][P.type]+'_'+polTag(P.pol)+'_'+fx(P.T,1).replace('.','p')+'C';}
 function plotPNG(key){
   const [id,title,fn]=PLOTS[key],cv=$(id),C=tok(),fig=cv.closest('figure'),S=3;
   XS=S;fn(C);XS=0;

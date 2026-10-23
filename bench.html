@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PPLN Experimental Bench</title>
+<meta name="description" content="Fit measured SPDC spectra, temperature tuning curves and joint spectral intensities from MgO:PPLN to the quasi-phase-matching model.">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="styles.css?v=6">
+</head>
+<body>
+<nav class="nav" aria-label="Site">
+  <div class="nav-in">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span>PPLN SPDC Bench</a>
+    <div class="nav-links">
+      <a href="index.html" class="opt">Overview</a>
+      <a href="simulator.html">Simulator</a>
+      <a href="bench.html" aria-current="page"><span class="wide">Experimental bench</span><span class="narrow">Bench</span></a>
+      <a href="https://github.com/abhayasd555/ppln-spdc-bench" target="_blank" rel="noopener" class="opt">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+<header class="page-head">
+  <div>
+    <h1>Experimental bench</h1>
+    <p>Load a measured spectrum, temperature scan or JSI and fit it to the phase-matching model.</p>
+  </div>
+</header>
+
+<div class="layout">
+<aside class="rack" aria-label="Crystal model">
+  <h2>Crystal model</h2>
+  <div class="polnote">These are the fit's starting values. Fitted values are written back here.</div>
+  <div class="field">
+    <label>Interaction type</label>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="type" id="ty0" value="0" checked><span>Type-0<small>eee</small></span></label>
+      <label><input type="radio" name="type" id="ty1" value="1"><span>Type-I<small>ooe</small></span></label>
+      <label><input type="radio" name="type" id="ty2" value="2"><span>Type-II<small>eoo / oeo</small></span></label>
+    </div>
+  </div>
+  <div class="field" id="t2field" hidden>
+    <label>Type-II polarisation <small>signal · idler · pump</small></label>
+    <div class="seg seg2" role="radiogroup">
+      <label><input type="radio" name="t2" id="t2eo" value="eo" checked><span>eoo<small>signal e, idler o</small></span></label>
+      <label><input type="radio" name="t2" id="t2oe" value="oe"><span>oeo<small>signal o, idler e</small></span></label>
+    </div>
+  </div>
+  <div class="polnote" id="polnote"></div>
+  <div class="row2">
+    <div class="field"><label for="lp">Pump λ <small>nm</small></label><input type="number" id="lp" value="775" step="0.01" min="350" max="2000"></div>
+    <div class="field"><label for="bw">Pump BW <small>nm FWHM</small></label><input type="number" id="bw" value="0" step="0.01" min="0"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label for="per">Period Λ₀ <small>µm @25 °C</small></label><input type="number" id="per" value="19.3" step="0.001" min="0.5"></div>
+    <div class="field"><label for="ord">QPM order</label><select id="ord"><option value="1">m = 1</option><option value="3">m = 3</option><option value="5">m = 5</option></select></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label for="Tn">Temperature <small>°C</small></label><input type="number" id="Tn" value="50" step="0.1" min="-20" max="250"></div>
+    <div class="field"><label for="Ln">Length <small>mm</small></label><input type="number" id="Ln" value="20" step="0.1" min="0.1" max="100"></div>
+  </div>
+  <div class="hr"></div>
+  <div class="row2">
+    <div class="field"><label for="ls">Design signal <small>nm</small></label><input type="number" id="ls" value="1550" step="0.1"></div>
+    <div class="field"><label>&nbsp;</label><button id="fitP">Set Λ₀ for it</button></div>
+  </div>
+  <div class="msg" id="msg" role="status"></div>
+</aside>
+
+<section class="out">
+  <div class="field tabbar">
+    <div class="seg" role="tablist" aria-label="Measurement">
+      <label><input type="radio" name="tab" value="spec" checked><span>Spectrum</span></label>
+      <label><input type="radio" name="tab" value="temp"><span>Temperature</span></label>
+      <label><input type="radio" name="tab" value="jsi"><span>JSI</span></label>
+    </div>
+  </div>
+
+  <!-- ===== Spectrum ===== -->
+  <div class="tabpane" id="pane-spec" role="tabpanel">
+    <div class="grid4">
+      <div class="panel">
+        <div class="ph"><h3>Data</h3><div class="dl"><button type="button" data-file="spec">Load file</button><button type="button" data-ex="spec">Example</button></div></div>
+        <textarea id="spec-data" spellcheck="false" aria-label="Spectrum data" placeholder="# wavelength_nm, counts&#10;1540.0, 112&#10;1540.2, 131&#10;…"></textarea>
+        <div class="cap">Two columns: wavelength (nm), counts. Comma, tab or space separated; lines starting with # and text headers are skipped.</div>
+        <div class="cap stat" id="spec-stat"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h3>Fit</h3></div>
+        <div class="field"><label>Measured photon</label>
+          <div class="seg seg2" role="radiogroup"><label><input type="radio" name="spec-arm" value="s" checked><span>Signal</span></label><label><input type="radio" name="spec-arm" value="i"><span>Idler</span></label></div></div>
+        <div class="row2">
+          <div class="field"><label for="spec-res">Resolution <small>nm FWHM</small></label><input type="number" id="spec-res" value="0" step="0.01" min="0"></div>
+          <div class="field"><label for="spec-wt">Weighting</label><select id="spec-wt"><option value="poisson">Poisson (counts)</option><option value="none">Unweighted</option></select></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="spec-bg" checked><span>Fit constant background</span></label>
+        <div class="field"><label>Free parameters</label><div class="free" id="spec-free"></div></div>
+        <div class="btns3"><button data-guess="spec">Auto guess</button><button class="pri" data-fit="spec">Fit</button><button data-undo="spec">Undo</button></div>
+        <div class="msg" id="spec-msg" role="status"></div>
+      </div>
+    </div>
+    <div class="panel"><div class="ph"><h3>Fit results</h3></div><div class="tblwrap" id="spec-res-tab"></div></div>
+    <figure class="panel" style="margin:0">
+      <div class="ph"><h3>Spectrum fit</h3><div class="lg"><span><i style="background:var(--sig)"></i>data</span><span><i style="background:var(--pump)"></i>model</span><span><i style="background:var(--muted)"></i>residual</span></div></div>
+      <canvas id="cv-spec" class="tall" aria-label="Measured spectrum with fitted model"></canvas>
+      <div class="pf"><figcaption class="cap">A · sinc²(Δk L/2) + B, averaged over the pump bandwidth and spectrometer resolution when they are non-zero.</figcaption><div class="dl"><button type="button" data-png="spec">PNG</button><button type="button" data-csv="spec">CSV</button></div></div>
+    </figure>
+  </div>
+
+  <!-- ===== Temperature ===== -->
+  <div class="tabpane" id="pane-temp" role="tabpanel" hidden>
+    <div class="grid4">
+      <div class="panel">
+        <div class="ph"><h3>Data</h3><div class="dl"><button type="button" data-file="temp">Load file</button><button type="button" data-ex="temp">Example</button></div></div>
+        <textarea id="temp-data" spellcheck="false" aria-label="Temperature data"></textarea>
+        <div class="cap" id="temp-hint"></div>
+        <div class="cap stat" id="temp-stat"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h3>Fit</h3></div>
+        <div class="field"><label>Measurement</label>
+          <div class="seg seg2" role="radiogroup"><label><input type="radio" name="temp-mode" value="lam" checked><span>λ vs T<small>tuning curve</small></span></label><label><input type="radio" name="temp-mode" value="cnt"><span>Counts vs T<small>acceptance</small></span></label></div></div>
+        <div class="field"><label>Measured photon <small>column 2</small></label>
+          <div class="seg seg2" role="radiogroup"><label><input type="radio" name="temp-arm" value="s" checked><span>Signal</span></label><label><input type="radio" name="temp-arm" value="i"><span>Idler</span></label></div></div>
+        <div class="row2 cnt-only">
+          <div class="field"><label for="temp-fl">Filter centre <small>nm</small></label><input type="number" id="temp-fl" value="1550" step="0.1"></div>
+          <div class="field"><label for="temp-fw">Filter BW <small>nm FWHM</small></label><input type="number" id="temp-fw" value="0" step="0.1" min="0"></div>
+        </div>
+        <div class="row2 cnt-only">
+          <div class="field"><label for="temp-wt">Weighting</label><select id="temp-wt"><option value="poisson">Poisson (counts)</option><option value="none">Unweighted</option></select></div>
+          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="temp-bg" checked><span>Background</span></label></div>
+        </div>
+        <div class="field"><label>Free parameters</label><div class="free" id="temp-free"></div></div>
+        <div class="btns3"><button data-guess="temp">Auto guess</button><button class="pri" data-fit="temp">Fit</button><button data-undo="temp">Undo</button></div>
+        <div class="msg" id="temp-msg" role="status"></div>
+      </div>
+    </div>
+    <div class="panel"><div class="ph"><h3>Fit results</h3></div><div class="tblwrap" id="temp-res-tab"></div></div>
+    <figure class="panel" style="margin:0">
+      <div class="ph"><h3 id="temp-title">Temperature tuning fit</h3><div class="lg" id="temp-lg"></div></div>
+      <canvas id="cv-temp" class="tall" aria-label="Temperature data with fitted model"></canvas>
+      <div class="pf"><figcaption class="cap" id="temp-cap"></figcaption><div class="dl"><button type="button" data-png="temp">PNG</button><button type="button" data-csv="temp">CSV</button></div></div>
+    </figure>
+  </div>
+
+  <!-- ===== JSI ===== -->
+  <div class="tabpane" id="pane-jsi" role="tabpanel" hidden>
+    <div class="grid4">
+      <div class="panel">
+        <div class="ph"><h3>Data</h3><div class="dl"><button type="button" data-file="jsi">Load file</button><button type="button" data-ex="jsi">Example</button></div></div>
+        <textarea id="jsi-data" spellcheck="false" aria-label="JSI data" placeholder="idler\signal, 1549.0, 1549.1, …&#10;1551.0, 3, 5, …&#10;1550.9, 4, 9, …"></textarea>
+        <div class="cap">Matrix: first row holds the x-axis wavelengths (nm), first column the y-axis wavelengths, the rest counts. This is the simulator's JSI CSV format. Three columns (x nm, y nm, counts) covering a full grid also work.</div>
+        <div class="cap stat" id="jsi-stat"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h3>Fit</h3></div>
+        <div class="field"><label>Axes</label>
+          <div class="seg seg2" role="radiogroup"><label><input type="radio" name="jsi-ax" value="si" checked><span>x signal · y idler</span></label><label><input type="radio" name="jsi-ax" value="is"><span>x idler · y signal</span></label></div></div>
+        <div class="row2">
+          <div class="field"><label for="jsi-wt">Weighting</label><select id="jsi-wt"><option value="poisson">Poisson (counts)</option><option value="none">Unweighted</option></select></div>
+          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="jsi-bg" checked><span>Background</span></label></div>
+        </div>
+        <div class="field"><label>Free parameters</label><div class="free" id="jsi-free"></div></div>
+        <div class="btns3"><button data-guess="jsi">Auto guess</button><button class="pri" data-fit="jsi">Fit</button><button data-undo="jsi">Undo</button></div>
+        <div class="msg" id="jsi-msg" role="status"></div>
+      </div>
+    </div>
+    <div class="panel"><div class="ph"><h3>Fit results</h3></div><div class="tblwrap" id="jsi-res-tab"></div></div>
+    <div class="grid3">
+      <figure class="panel" style="margin:0">
+        <div class="ph"><h3>Measured</h3></div>
+        <canvas id="cv-jsi-d" class="sq" aria-label="Measured JSI"></canvas>
+        <div class="pf"><figcaption class="cap">Counts, normalised to the data maximum.</figcaption><div class="dl"><button type="button" data-png="jsi-d">PNG</button></div></div>
+      </figure>
+      <figure class="panel" style="margin:0">
+        <div class="ph"><h3>Model</h3></div>
+        <canvas id="cv-jsi-m" class="sq" aria-label="Model JSI"></canvas>
+        <div class="pf"><figcaption class="cap">A · |α(ω<sub>s</sub>+ω<sub>i</sub>) φ(ω<sub>s</sub>,ω<sub>i</sub>)|² + B, same scale.</figcaption><div class="dl"><button type="button" data-png="jsi-m">PNG</button><button type="button" data-csv="jsi">CSV</button></div></div>
+      </figure>
+      <figure class="panel" style="margin:0">
+        <div class="ph"><h3>Residual</h3><div class="lg"><span><i style="background:var(--sig)"></i>data &gt; model</span><span><i style="background:var(--idl)"></i>data &lt; model</span></div></div>
+        <canvas id="cv-jsi-r" class="sq" aria-label="JSI residual"></canvas>
+        <div class="pf"><figcaption class="cap">Data − model, same scale.</figcaption><div class="dl"><button type="button" data-png="jsi-r">PNG</button></div></div>
+      </figure>
+    </div>
+  </div>
+
+  <details id="method">
+    <summary>How the fit works</summary>
+    <div class="notes">
+      <p>The model is the one used by the <a href="simulator.html">simulator</a>: temperature-dependent Sellmeier indices of 5 mol% MgO:CLN, grating thermal expansion and Δk = 2π[n<sub>p</sub>/λ<sub>p</sub> − n<sub>s</sub>/λ<sub>s</sub> − n<sub>i</sub>/λ<sub>i</sub>] − 2πm/Λ(T), with the polarisations set by the interaction type.</p>
+      <span class="eq">Spectrum         S(λ) = A · ⟨sinc²(Δk L/2)⟩ + B        ⟨⟩ = average over pump BW and resolution
+Tuning curve     λ(T) solves Δk(λ, T + ΔT) = 0          nearest root to each measured point
+Acceptance       C(T) = A · ⟨sinc²(Δk(λ_f, T + ΔT) L/2)⟩ + B
+JSI              I(λs, λi) = A · |exp(−2 ln2 Δσ²/Δσ_p²) · sinc(Δk L/2)|² + B</span>
+      <p>The nonlinear parameters you tick are fitted by Levenberg–Marquardt with numerical derivatives. Amplitude A and background B are solved by linear least squares at every step, so they never need starting values. ΔT is an offset added to the recorded oven temperatures.</p>
+      <p>Count data default to Poisson weights 1/√counts. Use Unweighted only for data that are not raw counts (normalised or background-subtracted spectra). With raw counts it still finds the best curve, but its error bars come out too small because bright pixels are much noisier than dim ones.</p>
+      <p>Uncertainties are 1σ from the covariance (JᵀJ)⁻¹ scaled by the reduced χ², as in scipy's <code>curve_fit</code> default. Pairs of parameters with |correlation| above 0.95 are flagged, since Λ₀, T and ΔT often trade off against each other. Fit one of them and hold the others.</p>
+      <p>Sinc² fits have many local minima. Press <b>Auto guess</b> first: it places the phase-matching peak on the data peak and sets L from the measured width. The rack values are always the starting point, so you can also set them by hand while watching the model curve.</p>
+      <p>JSI purity is estimated from √(data − B) as the joint spectral amplitude, assuming a flat spectral phase, so it is an upper bound for the real state. The model purity uses the fitted JSA. Overlap is the Bhattacharyya coefficient between normalised data and model.</p>
+    </div>
+  </details>
+</section>
+</div>
+</div>
+
+<input type="file" id="fileIn" accept=".csv,.txt,.tsv,.dat,.asc" hidden>
+
+<footer>
+  <span>Material model from the <a href="https://www.hcphotonics.com/ppln-guide-overview" target="_blank" rel="noopener">HC Photonics PPLN guide</a> · Sellmeier coefficients of Gayer et al., Appl. Phys. B 91, 343 (2008).</span>
+  <span><a href="https://github.com/abhayasd555/ppln-spdc-bench" target="_blank" rel="noopener">Source on GitHub</a></span>
+</footer>
+
+<script src="core.js?v=6"></script>
+<script>
+(function(){
+const {nidx,perT,polOf,polTag,TP,kmis,sinc,bisect,tok,prep,frame,path,dots,hline,rng,note,hex,cmapOf,paint,saveFile,figPNG}=PPLN;
+const $=id=>document.getElementById(id);
+const radio=n=>document.querySelector('input[name="'+n+'"]:checked').value;
+const fx=(v,d)=>Number.isFinite(v)?v.toFixed(d):'–';
+const LN2=Math.LN2,FW=2*Math.sqrt(2*LN2);
+const SINC_HW=1.39156; // sinc²(x) = ½ at x = 1.39156
+
+// ---------- model ----------
+// h: finite-difference step, lo: lower bound, d: display decimals
+const PAR={T:{l:'Temperature T',u:'°C',id:'Tn',h:1e-3,d:3},L0:{l:'Period Λ₀',u:'µm',id:'per',h:1e-5,d:4,lo:0.3},
+  Lmm:{l:'Length L',u:'mm',id:'Ln',h:1e-4,d:3,lo:0.01},lp:{l:'Pump λ',u:'nm',id:'lp',h:1e-4,d:4,lo:300},
+  bw:{l:'Pump BW',u:'nm',id:'bw',h:1e-5,d:4,lo:1e-4},dT:{l:'Oven offset ΔT',u:'°C',h:1e-3,d:3},
+  A:{l:'Amplitude A',u:'',d:4},B:{l:'Background B',u:'',d:4}};
+let DT=0; // offset added to recorded oven temperatures
+const getP=k=>k==='dT'?DT:+$(PAR[k].id).value;
+function setP(k,v){if(k==='dT')DT=v;else $(PAR[k].id).value=+v.toFixed(PAR[k].d+3);}
+function model(ov){
+  const type=+radio('type'),t2=radio('t2'),v=k=>ov&&k in ov?ov[k]:getP(k);
+  const M={type,t2,pol:polOf(type,t2),T:v('T'),L0:v('L0'),Lmm:v('Lmm'),lpnm:v('lp'),bw:Math.max(0,v('bw')),dT:v('dT'),m:+$('ord').value};
+  M.sp=1000/M.lpnm;M.L=M.Lmm*1000;M.Fs=M.bw*M.sp*M.sp/1000; // pump FWHM in µm⁻¹
+  M.sgn=Math.sign(kmis(M.sp/2,M.sp/2,M.T,M.pol))||1;
+  return M;
+}
+const dkM=(M,ss,si,T)=>kmis(ss,si,T,M.pol)-M.sgn*TP*M.m/perT(M.L0,T);
+const pairOf=(M,arm,s,sp)=>arm==='s'?[s,(sp||M.sp)-s]:[(sp||M.sp)-s,s];
+// Gaussian quadrature-ish nodes over ±1.2 FWHM, intensity weights
+const NODES=(()=>{const n=13,a=[];for(let i=0;i<n;i++){const u=-1.2+2.4*i/(n-1);a.push([u,Math.exp(-4*LN2*u*u)]);}const s=a.reduce((t,x)=>t+x[1],0);a.forEach(x=>x[1]/=s);return a;})();
+// sinc² at detected wavelength lam (nm) of photon `arm`, averaged over pump BW and a detection band of FWHM res (nm)
+function pmAt(M,lam,T,arm,res){
+  const pn=M.Fs>0?NODES:[[0,1]],rn=res>0?NODES:[[0,1]];let s=0;
+  for(const [u,w] of rn){const sg=1000/(lam+u*res);
+    for(const [v,wp] of pn){const [ss,si]=pairOf(M,arm,sg,M.sp+v*M.Fs);if(ss<0.2||si<0.2)continue;const x=sinc(dkM(M,ss,si,T)*M.L/2);s+=w*wp*x*x;}}
+  return s;
+}
+// root of Δk = 0 for photon `arm` nearest wavenumber s0 at temperature T
+function rootNear(M,arm,s0,T){
+  const g=s=>{const [a,b]=pairOf(M,arm,s);return dkM(M,a,b,T);};
+  let s=s0;
+  for(let k=0;k<40;k++){const h=1e-6,g0=g(s),d=(g(s+h)-g(s-h))/(2*h);if(!(Math.abs(d)>1e-9))break;let st=-g0/d;if(Math.abs(st)>0.01)st=Math.sign(st)*0.01;s+=st;if(Math.abs(st)<1e-12)break;}
+  if(Math.abs(g(s))*M.L/2<1e-4&&Math.abs(s-s0)<0.1)return s;
+  const lo=s0-0.08,hi=s0+0.08,N=400,R=[];let best=s0,bv=Infinity,pv=g(lo),ps=lo;
+  for(let i=1;i<=N;i++){const x=lo+(hi-lo)*i/N,v=g(x);if(Math.abs(v)<bv){bv=Math.abs(v);best=x;}if(pv*v<=0)R.push(bisect(g,ps,x,pv));pv=v;ps=x;}
+  return R.length?R.reduce((a,b)=>Math.abs(b-s0)<Math.abs(a-s0)?b:a):best;
+}
+// all Δk = 0 roots (signal wavenumber) at T, scanning the full collinear range
+function allRoots(M,T,N){
+  const dmax=Math.min(M.sp/2-0.2,1/0.35-M.sp/2),f=d=>dkM(M,M.sp/2+d,M.sp/2-d,T),R=[];
+  let pv=f(-dmax),pd=-dmax,best=Infinity,bd=0;
+  for(let i=1;i<N;i++){const d=-dmax+2*dmax*i/(N-1),v=f(d);if(Math.abs(v)<best){best=Math.abs(v);bd=d;}if(pv*v<=0)R.push(bisect(f,pd,d,pv));pv=v;pd=d;}
+  return {R:R.map(d=>M.sp/2+d),best:M.sp/2+bd};
+}
+// temperature nearest T0 where Δk(ss, si, T) = 0, or null
+function solveT(M,ss,si,T0){const g=t=>dkM(M,ss,si,t),R=[];let pv=g(-20),pt=-20;
+  for(let t=-19.75;t<=260;t+=0.25){const v=g(t);if(pv*v<=0)R.push(bisect(g,pt,t,pv));pv=v;pt=t;}
+  return R.length?R.reduce((a,b)=>Math.abs(b-T0)<Math.abs(a-T0)?b:a):null;}
+// operating point: phase-matched signal wavenumber nearest the design signal
+function opPoint(M){const r=allRoots(M,M.T,1600),ds=1000/(+$('ls').value||2*M.lpnm);
+  const ss=r.R.length?r.R.reduce((a,b)=>Math.abs(b-ds)<Math.abs(a-ds)?b:a):r.best;return {ss,si:M.sp-ss,exact:r.R.length>0};}
+// half-width (µm⁻¹) of the sinc² main lobe along wavenumber s of photon `arm`, pump fixed
+function pmHalfWidth(M,arm,s,T){const g=x=>{const [a,b]=pairOf(M,arm,x);return dkM(M,a,b,T);},h=1e-5;
+  const f1=(g(s+h)-g(s-h))/(2*h),f2=(g(s+h)-2*g(s)+g(s-h))/(h*h),B=2*SINC_HW/M.L;
+  let w=Infinity;if(Math.abs(f1)>1e-12)w=B/Math.abs(f1);if(Math.abs(f2)>1e-12)w=Math.min(w,Math.sqrt(2*B/Math.abs(f2)));return isFinite(w)?w:0.01;}
+
+// ---------- least squares ----------
+function solve(A,b){const n=b.length,M=A.map((r,i)=>r.concat([b[i]]));
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    if(!(Math.abs(M[p][c])>1e-300))return null;[M[c],M[p]]=[M[p],M[c]];
+    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+  return M.map((r,i)=>r[n]/r[i]);}
+function inv(A){const n=A.length,I=[];for(let j=0;j<n;j++){const e=Array(n).fill(0);e[j]=1;const x=solve(A,e);if(!x)return null;I.push(x);}
+  return A.map((_,i)=>I.map(col=>col[i]));}
+const sumsq=r=>{let s=0;for(const v of r)s+=v*v;return Number.isFinite(s)?s:Infinity;};
+function jac(res,p,r,h){return p.map((v,j)=>{const q=p.slice(),hj=Math.max(h[j],Math.abs(v)*1e-7);q[j]=v+hj;const rj=res(q),c=new Float64Array(r.length);for(let i=0;i<r.length;i++)c[i]=(rj[i]-r[i])/hj;return c;});}
+function normal(J,r){const n=J.length,A=[],g=[];
+  for(let a=0;a<n;a++){A.push([]);let s=0;for(let i=0;i<r.length;i++)s+=J[a][i]*r[i];g.push(s);
+    for(let b=0;b<n;b++){let t=0;for(let i=0;i<r.length;i++)t+=J[a][i]*J[b][i];A[a].push(t);}}
+  return {A,g};}
+// Levenberg–Marquardt on a residual vector; lo = lower bounds
+function lm(res,p0,h,lo,maxIt){
+  let p=p0.slice(),r=res(p),S=sumsq(r),lam=1e-3,it=0;
+  if(!p.length||!isFinite(S))return {p,S,it};
+  for(;it<maxIt;it++){
+    const J=jac(res,p,r,h),{A,g}=normal(J,r);let ok=false,rel=0;
+    for(let t=0;t<14&&!ok;t++){
+      const Ad=A.map((row,i)=>row.map((v,j)=>i===j?v*(1+lam)+1e-30:v)),d=solve(Ad,g.map(x=>-x));
+      if(d){const pn=p.map((v,i)=>lo[i]!=null?Math.max(lo[i],v+d[i]):v+d[i]),rn=res(pn),Sn=sumsq(rn);
+        if(Sn<S){rel=(S-Sn)/S;p=pn;r=rn;S=Sn;lam=Math.max(lam/3,1e-12);ok=true;break;}}
+      lam*=4;}
+    if(!ok||rel<1e-10)break;
+  }
+  return {p,S,it:it+1};
+}
+// best A (and B) for model shape f against y with weights w
+function project(f,y,w,bg){let Sff=0,Sf=0,S1=0,Sy=0,Sfy=0;
+  for(let i=0;i<y.length;i++){const W=w[i]*w[i];Sff+=W*f[i]*f[i];Sf+=W*f[i];S1+=W;Sy+=W*y[i];Sfy+=W*f[i]*y[i];}
+  if(!bg)return {A:Sff>0?Sfy/Sff:0,B:0};
+  const det=Sff*S1-Sf*Sf;if(!(Math.abs(det)>1e-300))return {A:0,B:Sy/S1};
+  return {A:(Sfy*S1-Sf*Sy)/det,B:(Sff*Sy-Sf*Sfy)/det};}
+const weights=(y,wt)=>Float64Array.from(y,v=>wt==='poisson'?1/Math.sqrt(Math.max(v,1)):1);
+
+// ---------- parsing ----------
+function tokRows(text){const out=[];for(const raw of text.split(/\r?\n/)){const s=raw.trim();if(!s||/^[#%]/.test(s)||s.startsWith('//'))continue;out.push(s.split(/[\s,;]+/).filter(Boolean));}return out;}
+const numRows=(text,k)=>tokRows(text).map(t=>t.map(Number)).filter(r=>r.length>=k&&r.slice(0,k).every(Number.isFinite));
+function parseXY(text,k){const R=numRows(text,k).sort((a,b)=>a[0]-b[0]);return R;}
+function parseGrid(text){
+  const R=tokRows(text),isNum=t=>t.every(v=>Number.isFinite(+v));
+  if(R.length<3)return {err:'Need at least a header row and two data rows.'};
+  const nums=R.filter(isNum);
+  if(nums.length>=9&&nums.length===R.length&&R.every(t=>t.length===3)){ // long format x, y, z
+    const key=v=>Math.round(v*1e6),xs=[...new Set(nums.map(t=>key(+t[0])))].sort((a,b)=>a-b),ys=[...new Set(nums.map(t=>key(+t[1])))].sort((a,b)=>a-b);
+    if(xs.length*ys.length!==nums.length)return {err:'Three-column JSI data must cover a complete x–y grid.'};
+    const xi=new Map(xs.map((v,i)=>[v,i])),yi=new Map(ys.map((v,i)=>[v,i])),Z=new Float64Array(xs.length*ys.length);
+    for(const t of nums)Z[yi.get(key(+t[1]))*xs.length+xi.get(key(+t[0]))]=+t[2];
+    return {xs:xs.map(v=>v/1e6),ys:ys.map(v=>v/1e6),nx:xs.length,ny:ys.length,Z};}
+  const body=R.slice(1),hdr=R[0],nx=body[0].length-1;
+  const xs=(hdr.length===nx?hdr:hdr.slice(1)).map(Number);
+  if(xs.length!==nx||!xs.every(Number.isFinite))return {err:'First row must list the x-axis wavelengths ('+nx+' values to match the data rows).'};
+  const rows=body.filter(t=>t.length===nx+1&&isNum(t));
+  if(rows.length<2)return {err:'No data rows with '+(nx+1)+' numeric values found.'};
+  const ox=xs.map((v,i)=>i).sort((a,b)=>xs[a]-xs[b]),oy=rows.map((t,i)=>i).sort((a,b)=>rows[a][0]-rows[b][0]);
+  const ny=rows.length,Z=new Float64Array(nx*ny);
+  oy.forEach((r,j)=>ox.forEach((c,i)=>{Z[j*nx+i]=+rows[r][c+1];}));
+  return {xs:ox.map(i=>xs[i]),ys:oy.map(r=>+rows[r][0]),nx,ny,Z};
+}
+
+// ---------- measurement types ----------
+// each: free (params offered), def (ticked by default), opts(), parse(text,o), y(D,o), shape(M,D,o), linear
+const TAB={
+spec:{free:['T','Lmm','L0','lp','bw'],def:['T','Lmm'],linear:true,
+  opts:()=>({arm:radio('spec-arm'),res:Math.max(0,+$('spec-res').value||0),wt:$('spec-wt').value,bg:$('spec-bg').checked}),
+  parse(text){const R=parseXY(text,2);if(R.length<8)return {err:'Need at least 8 rows of wavelength, counts.'};
+    return {x:R.map(r=>r[0]),y:Float64Array.from(R,r=>r[1]),n:R.length,desc:R.length+' points · '+fx(R[0][0],2)+'–'+fx(R[R.length-1][0],2)+' nm'};},
+  y:D=>D.y,
+  shape:(M,D,o)=>Float64Array.from(D.x,x=>pmAt(M,x,M.T,o.arm,o.res))},
+temp:{get free(){return radio('temp-mode')==='lam'?['L0','dT','lp']:['dT','Lmm','L0','bw'];},get def(){return radio('temp-mode')==='lam'?['L0']:['dT','Lmm'];},
+  get linear(){return radio('temp-mode')==='cnt';},
+  opts:()=>({mode:radio('temp-mode'),arm:radio('temp-arm'),fl:+$('temp-fl').value,fw:Math.max(0,+$('temp-fw').value||0),wt:radio('temp-mode')==='cnt'?$('temp-wt').value:'none',bg:$('temp-bg').checked}),
+  parse(text,o){
+    if(o.mode==='cnt'){const R=parseXY(text,2);if(R.length<6)return {err:'Need at least 6 rows of temperature, counts.'};
+      return {T:R.map(r=>r[0]),y:Float64Array.from(R,r=>r[1]),n:R.length,desc:R.length+' points · '+fx(R[0][0],2)+'–'+fx(R[R.length-1][0],2)+' °C'};}
+    const R=parseXY(text,2);if(R.length<3)return {err:'Need at least 3 rows of temperature, wavelength.'};
+    const T=R.map(r=>r[0]),l=R.map(r=>r[1]),p=R.map(r=>r.length>2&&Number.isFinite(r[2])?r[2]:NaN),np=p.filter(Number.isFinite).length;
+    return {T,l,p,np,n:R.length,desc:R.length+' points · '+fx(T[0],1)+'–'+fx(T[T.length-1],1)+' °C'+(np?' · partner λ in column 3':'')};},
+  y(D,o){if(o.mode==='cnt')return D.y;const y=D.l.slice();D.p.forEach(v=>{if(Number.isFinite(v))y.push(v);});return Float64Array.from(y);},
+  shape(M,D,o){
+    if(o.mode==='cnt')return Float64Array.from(D.T,t=>pmAt(M,o.fl,t+M.dT,o.arm,o.fw));
+    const a=[],b=[];D.T.forEach((t,i)=>{const s=rootNear(M,o.arm,1000/D.l[i],t+M.dT);a.push(1000/s);if(Number.isFinite(D.p[i]))b.push(1000/(M.sp-s));});
+    return Float64Array.from(a.concat(b));}},
+jsi:{free:['T','Lmm','bw','lp','L0'],def:['T','Lmm','bw'],linear:true,
+  opts:()=>({swap:radio('jsi-ax')==='is',wt:$('jsi-wt').value,bg:$('jsi-bg').checked}),
+  parse(text){const G=parseGrid(text);if(G.err)return G;if(G.nx<4||G.ny<4)return {err:'JSI grid must be at least 4 × 4.'};
+    G.n=G.nx*G.ny;G.desc=G.nx+' × '+G.ny+' grid · x '+fx(G.xs[0],2)+'–'+fx(G.xs[G.nx-1],2)+' nm · y '+fx(G.ys[0],2)+'–'+fx(G.ys[G.ny-1],2)+' nm';return G;},
+  y:D=>D.Z,
+  shape(M,D,o){const out=new Float64Array(D.nx*D.ny),Fs=Math.max(M.Fs,1e-7);
+    for(let r=0;r<D.ny;r++)for(let c=0;c<D.nx;c++){const ls=o.swap?D.ys[r]:D.xs[c],li=o.swap?D.xs[c]:D.ys[r],ss=1000/ls,si=1000/li,dp=ss+si-M.sp;
+      const v=Math.exp(-2*LN2*dp*dp/(Fs*Fs))*sinc(dkM(M,ss,si,M.T)*M.L/2);out[r*D.nx+c]=v*v;}
+    return out;}}
+};
+const ST={spec:{},temp:{},jsi:{}}; // per tab: data, view, fit, prev
+
+// ---------- fitting ----------
+function freeKeys(k){return [...document.querySelectorAll('#'+k+'-free input:checked')].map(e=>e.value);}
+function buildFree(k){const box=$(k+'-free'),T=TAB[k];
+  box.innerHTML=T.free.map(p=>'<label class="chk"><input type="checkbox" value="'+p+'"'+(T.def.includes(p)?' checked':'')+'><span>'+PAR[p].l+'</span></label>').join('');
+  box.querySelectorAll('input').forEach(e=>e.addEventListener('change',()=>renderRes(k)));}
+
+function runFit(k){
+  const T=TAB[k],S=ST[k],D=S.data,msg=$(k+'-msg');
+  if(!D){msg.textContent='Load data first.';return;}
+  const o=T.opts(),keys=freeKeys(k),p0=keys.map(getP),h=keys.map(p=>PAR[p].h),lo=keys.map(p=>PAR[p].lo),y=T.y(D,o),w=weights(y,o.wt),lin=T.linear;
+  const mk=p=>{const ov={};keys.forEach((q,i)=>ov[q]=p[i]);return model(ov);};
+  const res=p=>{const f=T.shape(mk(p),D,o),r=new Float64Array(y.length);
+    if(lin){const ab=project(f,y,w,o.bg);for(let i=0;i<y.length;i++)r[i]=w[i]*(y[i]-ab.A*f[i]-ab.B);}
+    else for(let i=0;i<y.length;i++)r[i]=w[i]*(f[i]-y[i]);
+    return r;};
+  const t0=performance.now(),R=lm(res,p0,h,lo,80);
+  S.prev={keys,p0,DT};
+  keys.forEach((q,i)=>setP(q,R.p[i]));
+  // covariance over all parameters, including the linear A and B
+  const f=T.shape(mk(R.p),D,o),ab=lin?project(f,y,w,o.bg):null,all=keys.slice(),q=R.p.slice(),hh=h.slice();let full=res;
+  if(lin){const nk=keys.length,sa=Math.abs(ab.A)*1e-6+1e-12;all.push('A');q.push(ab.A);hh.push(sa);if(o.bg){all.push('B');q.push(ab.B);hh.push(sa);}
+    full=qq=>{const f2=T.shape(mk(qq.slice(0,nk)),D,o),A=qq[nk],B=o.bg?qq[nk+1]:0,r=new Float64Array(y.length);for(let i=0;i<y.length;i++)r[i]=w[i]*(y[i]-A*f2[i]-B);return r;};}
+  const r0=full(q),J=jac(full,q,r0,hh),{A}=normal(J,r0),dof=Math.max(1,y.length-q.length),s2=sumsq(r0)/dof,Ci=inv(A);
+  const sig=q.map((_,i)=>Ci?Math.sqrt(Math.max(0,Ci[i][i]*s2)):NaN),corr=[];
+  if(Ci)for(let a=0;a<keys.length;a++)for(let b=a+1;b<keys.length;b++){const c=Ci[a][b]/Math.sqrt(Ci[a][a]*Ci[b][b]);if(Math.abs(c)>0.95)corr.push(PAR[keys[a]].l+' / '+PAR[keys[b]].l+' (ρ = '+fx(c,3)+')');}
+  S.fit={keys:all,start:p0,val:q,sig,s2,dof,N:y.length,it:R.it,ms:performance.now()-t0,corr,wt:o.wt};
+  msg.textContent=!keys.length?'No free parameters ticked: only A and B were solved.':corr.length?'Strongly correlated: '+corr.join('; ')+'. Consider holding one fixed.':'';
+  refresh();
+}
+function undo(k){const S=ST[k];if(!S.prev){$(k+'-msg').textContent='Nothing to undo.';return;}
+  S.prev.keys.forEach((q,i)=>setP(q,S.prev.p0[i]));DT=S.prev.DT;S.prev=null;S.fit=null;$(k+'-msg').textContent='Restored the pre-fit values.';refresh();}
+
+// ---------- auto guess ----------
+function smooth(y){return Array.from(y,(v,i)=>{let s=0,n=0;for(let j=Math.max(0,i-2);j<=Math.min(y.length-1,i+2);j++){s+=y[j];n++;}return s/n;});}
+function peakWidth(x,y){const s=smooth(y),srt=[...s].sort((a,b)=>a-b),base=srt[Math.floor(srt.length*0.1)];let im=0;for(let i=1;i<s.length;i++)if(s[i]>s[im])im=i;
+  const half=base+(s[im]-base)/2;let l=im;while(l>0&&s[l]>=half)l--;let r=im;while(r<s.length-1&&s[r]>=half)r++;
+  const ip=(i,j)=>x[i]+(half-s[i])/(s[j]-s[i])*(x[j]-x[i]),xl=l<im?ip(l,l+1):x[0],xr=r>im?ip(r,r-1):x[x.length-1];
+  return {xp:x[im],fw:Math.abs(xr-xl),base,top:s[im]};}
+const clampL=L=>Math.min(100,Math.max(0.1,L));
+function guess(k){
+  const T=TAB[k],S=ST[k],D=S.data,msg=$(k+'-msg'),o=T.opts(),free=freeKeys(k),notes=[];
+  if(!D){msg.textContent='Load data first.';return;}
+  const has=p=>free.includes(p);
+  if(k==='spec'){
+    const pk=peakWidth(D.x,D.y),sg=1000/pk.xp;
+    if(has('T')){const M=model(),[a,b]=pairOf(M,o.arm,sg),t=solveT(M,a,b,M.T);if(t!=null){setP('T',t);notes.push('T → '+fx(t,2)+' °C');}else notes.push('no T phase-matches the peak');}
+    else if(has('L0')){const M=model(),[a,b]=pairOf(M,o.arm,sg);setP('L0',TP*M.m/Math.abs(kmis(a,b,M.T,M.pol))/perT(1,M.T));notes.push('Λ₀ from peak');}
+    if(has('Lmm')){const M=model(),g=s=>{const [a,b]=pairOf(M,o.arm,s);return dkM(M,a,b,M.T);},h=1e-5,f1=(g(sg+h)-g(sg-h))/(2*h),f2=(g(sg+h)-2*g(sg)+g(sg-h))/(h*h);
+      const d=Math.abs(1000/(pk.xp-pk.fw/2)-1000/(pk.xp+pk.fw/2))/2,L=2*SINC_HW/(Math.abs(f1)*d+0.5*Math.abs(f2)*d*d)/1000;
+      if(isFinite(L)){setP('Lmm',clampL(L));notes.push('L → '+fx(clampL(L),2)+' mm');}}
+  } else if(k==='temp'&&o.mode==='lam'){
+    if(has('L0')){const M=model(),v=D.T.map((t,i)=>{const [a,b]=pairOf(M,o.arm,1000/D.l[i]),tt=t+M.dT;return TP*M.m/Math.abs(kmis(a,b,tt,M.pol))/perT(1,tt);}).sort((a,b)=>a-b);
+      setP('L0',v[Math.floor(v.length/2)]);notes.push('Λ₀ → '+fx(getP('L0'),4)+' µm (median over points)');}
+    else notes.push('Auto guess sets Λ₀; tick it to use this.');
+  } else if(k==='temp'){
+    const pk=peakWidth(D.T,D.y),M=model(),[a,b]=pairOf(M,o.arm,1000/o.fl);
+    if(has('dT')){const t=solveT(M,a,b,pk.xp+M.dT);if(t!=null){setP('dT',t-pk.xp);notes.push('ΔT → '+fx(DT,2)+' °C');}else notes.push('no temperature phase-matches the filter λ');}
+    else if(has('L0')){const tt=pk.xp+M.dT;setP('L0',TP*M.m/Math.abs(kmis(a,b,tt,M.pol))/perT(1,tt));notes.push('Λ₀ from peak');}
+    if(has('Lmm')){const M2=model(),tt=pk.xp+M2.dT,g1=(dkM(M2,a,b,tt+0.01)-dkM(M2,a,b,tt-0.01))/0.02,L=2*2*SINC_HW/(Math.abs(g1)*pk.fw)/1000;
+      if(isFinite(L)){setP('Lmm',clampL(L));notes.push('L → '+fx(clampL(L),2)+' mm');}}
+  } else if(k==='jsi'){
+    let mn=Infinity,mx=-Infinity;for(const v of D.Z){if(v<mn)mn=v;if(v>mx)mx=v;}
+    let W=0,su=0,sv=0,suu=0,svv=0;const cut=mn+0.25*(mx-mn);
+    for(let r=0;r<D.ny;r++)for(let c=0;c<D.nx;c++){const z=D.Z[r*D.nx+c]-cut;if(z<=0)continue;
+      const ss=1000/(o.swap?D.ys[r]:D.xs[c]),si=1000/(o.swap?D.xs[c]:D.ys[r]),u=ss+si,v=(ss-si)/2;W+=z;su+=z*u;sv+=z*v;suu+=z*u*u;svv+=z*v*v;}
+    if(!(W>0)){msg.textContent='JSI looks empty.';return;}
+    const mu=su/W,mv=sv/W,ssc=mu/2+mv,sic=mu/2-mv,wu=FW*Math.sqrt(Math.max(suu/W-mu*mu,0))*1.4,wv=FW*Math.sqrt(Math.max(svv/W-mv*mv,0))*1.4;
+    if(has('lp')){setP('lp',1000/mu);notes.push('λp → '+fx(1000/mu,3)+' nm');}
+    if(has('T')){const M=model(),t=solveT(M,ssc,sic,M.T);if(t!=null){setP('T',t);notes.push('T → '+fx(t,2)+' °C');}else notes.push('no T phase-matches the JSI centre');}
+    else if(has('L0')){const M=model();setP('L0',TP*M.m/Math.abs(kmis(ssc,sic,M.T,M.pol))/perT(1,M.T));notes.push('Λ₀ from centre');}
+    if(has('bw')&&wu>0){const lp=getP('lp'),bw=wu*lp*lp/1000;setP('bw',bw);notes.push('BW → '+fx(bw,3)+' nm');}
+    if(has('Lmm')&&wv>0){const M=model(),g=v=>dkM(M,mu/2+v,mu/2-v,M.T),h=1e-5,f1=(g(mv+h)-g(mv-h))/(2*h),f2=(g(mv+h)-2*g(mv)+g(mv-h))/(h*h),d=wv/2,L=2*SINC_HW/(Math.abs(f1)*d+0.5*Math.abs(f2)*d*d)/1000;
+      if(isFinite(L)){setP('Lmm',clampL(L));notes.push('L → '+fx(clampL(L),2)+' mm');}}
+  }
+  msg.textContent=notes.length?'Guess: '+notes.join(' · '):'Nothing to guess for the ticked parameters.';
+  refresh();
+}
+
+// ---------- examples (synthetic data from the current model with known offsets) ----------
+function gauss(){let u=0;while(!u)u=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(TP*Math.random());}
+function pois(l){if(l<30){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}return Math.max(0,Math.round(l+Math.sqrt(l)*gauss()));}
+function example(k){
+  const M0=model(),o=TAB[k].opts(),lines=[],msg=$(k+'-msg');let info='';
+  if(k==='spec'){
+    const Mt=model({T:M0.T+0.6,Lmm:M0.Lmm*0.92}),op=opPoint(Mt),s0=o.arm==='s'?op.ss:op.si,hw=pmHalfWidth(Mt,o.arm,s0,Mt.T)*3;
+    const l0=1000/(s0+hw),l1=1000/(s0-hw);
+    lines.push('# Example spectrum ('+(o.arm==='s'?'signal':'idler')+'), true T = '+fx(Mt.T,2)+' °C, L = '+fx(Mt.Lmm,2)+' mm','# wavelength_nm, counts');
+    for(let i=0;i<300;i++){const l=l0+(l1-l0)*i/299;lines.push(l.toFixed(4)+', '+pois(2000*pmAt(Mt,l,Mt.T,o.arm,o.res)+30));}
+    info='True T = '+fx(Mt.T,2)+' °C, L = '+fx(Mt.Lmm,2)+' mm. Press Auto guess, then Fit.';
+  } else if(k==='temp'&&o.mode==='lam'){
+    const dTt=0.8,Mt=model({L0:M0.L0*(1+3e-4),dT:dTt}),op=opPoint(Mt);let s=o.arm==='s'?op.ss:op.si,n=0;
+    lines.push('# Example tuning curve, true Λ₀ = '+fx(Mt.L0,4)+' µm, oven offset ΔT = '+dTt+' °C','# T_C, '+(o.arm==='s'?'signal':'idler')+'_nm, partner_nm');
+    for(let T=M0.T-15;T<=M0.T+15.01;T+=1.5){s=rootNear(Mt,o.arm,s,T+dTt);const [a,b]=pairOf(Mt,o.arm,s);if(Math.abs(dkM(Mt,a,b,T+dTt))*Mt.L/2>1e-3)continue;
+      lines.push(T.toFixed(2)+', '+(1000/s+0.05*gauss()).toFixed(3)+', '+(1000/(Mt.sp-s)+0.05*gauss()).toFixed(3));n++;}
+    if(n<3){msg.textContent='The current model has no tuning curve near '+fx(M0.T,1)+' °C. Use “Set Λ₀ for it” first.';return;}
+    info='True Λ₀ = '+fx(Mt.L0,4)+' µm, ΔT = '+dTt+' °C. Fit Λ₀ alone, or tick ΔT too and see the correlation.';
+  } else if(k==='temp'){
+    const dTt=-0.5,Mt=model({Lmm:M0.Lmm*0.9,dT:dTt}),op=opPoint(Mt),lf=1000/(o.arm==='s'?op.ss:op.si);
+    $('temp-fl').value=lf.toFixed(2);
+    const [a,b]=pairOf(Mt,o.arm,1000/lf),Tp=solveT(Mt,a,b,Mt.T);if(Tp==null){msg.textContent='No phase-matching temperature for this model.';return;}
+    const g1=Math.abs(dkM(Mt,a,b,Tp+0.01)-dkM(Mt,a,b,Tp-0.01))/0.02,fwT=Math.min(30,4*SINC_HW/(g1*Mt.L));
+    lines.push('# Example acceptance at '+fx(lf,2)+' nm, true L = '+fx(Mt.Lmm,2)+' mm, oven offset ΔT = '+dTt+' °C','# T_C, counts');
+    for(let i=0;i<120;i++){const tr=Tp-dTt-2.5*fwT+5*fwT*i/119;lines.push(tr.toFixed(4)+', '+pois(1500*pmAt(Mt,lf,tr+dTt,o.arm,o.fw)+20));}
+    info='Filter centre set to '+fx(lf,2)+' nm. True L = '+fx(Mt.Lmm,2)+' mm, ΔT = '+dTt+' °C.';
+  } else {
+    const bwE=M0.bw>0?M0.bw:0.8,Mt=model({T:M0.T+0.4,bw:bwE,Lmm:M0.Lmm*0.9}),op=opPoint(Mt);
+    const hp=pmHalfWidth(Mt,'s',op.ss,Mt.T),hs=1.8*Math.max(hp,Mt.Fs,2e-6),N=64,ax=[],ay=[];
+    for(let i=0;i<N;i++){ax.push(1000/(op.ss+hs)+(1000/(op.ss-hs)-1000/(op.ss+hs))*i/(N-1));ay.push(1000/(op.si+hs)+(1000/(op.si-hs)-1000/(op.si+hs))*i/(N-1));}
+    const G={xs:o.swap?ay:ax,ys:o.swap?ax:ay,nx:N,ny:N},I=TAB.jsi.shape(Mt,G,o);
+    lines.push('# Example JSI, true T = '+fx(Mt.T,2)+' °C, L = '+fx(Mt.Lmm,2)+' mm, pump BW = '+fx(bwE,3)+' nm','# rows: y wavelength (nm); columns: x wavelength (nm)');
+    lines.push('y\\x, '+G.xs.map(v=>v.toFixed(4)).join(', '));
+    for(let r=N-1;r>=0;r--){const row=[G.ys[r].toFixed(4)];for(let c=0;c<N;c++)row.push(pois(800*I[r*N+c]+5));lines.push(row.join(', '));}
+    info='True T = '+fx(Mt.T,2)+' °C, L = '+fx(Mt.Lmm,2)+' mm, BW = '+fx(bwE,3)+' nm. Press Auto guess, then Fit.';
+  }
+  $(k+'-data').value=lines.join('\n');ST[k].fit=null;ST[k].prev=null;load(k);msg.textContent=info;
+}
+
+// ---------- data loading ----------
+function load(k){const S=ST[k],txt=$(k+'-data').value,st=$(k+'-stat');
+  if(!txt.trim()){S.data=null;st.textContent='';refresh();return;}
+  const D=TAB[k].parse(txt,TAB[k].opts());
+  if(D.err){S.data=null;st.textContent=D.err;st.classList.add('bad');}else{S.data=D;st.textContent='Loaded: '+D.desc;st.classList.remove('bad');}
+  refresh();}
+let fileTab=null;
+document.querySelectorAll('[data-file]').forEach(b=>b.addEventListener('click',()=>{fileTab=b.dataset.file;$('fileIn').value='';$('fileIn').click();}));
+$('fileIn').addEventListener('change',async e=>{const f=e.target.files[0];if(!f||!fileTab)return;$(fileTab+'-data').value=await f.text();ST[fileTab].fit=null;ST[fileTab].prev=null;load(fileTab);$(fileTab+'-msg').textContent='Read '+f.name+'.';});
+document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>example(b.dataset.ex)));
+document.querySelectorAll('[data-fit]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.fit;$(k+'-msg').textContent='Fitting…';setTimeout(()=>runFit(k),20);}));
+document.querySelectorAll('[data-guess]').forEach(b=>b.addEventListener('click',()=>guess(b.dataset.guess)));
+document.querySelectorAll('[data-undo]').forEach(b=>b.addEventListener('click',()=>undo(b.dataset.undo)));
+for(const k of Object.keys(TAB)){let t=0;$(k+'-data').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{ST[k].fit=null;load(k);},250);});}
+
+// ---------- current model vs data ----------
+function purity(J,nx,ny){let tr=0,tr2=0;for(let a=0;a<ny;a++)for(let b=a;b<ny;b++){let s=0;const oa=a*nx,ob=b*nx;for(let k=0;k<nx;k++)s+=J[oa+k]*J[ob+k];if(a===b){tr+=s;tr2+=s*s;}else tr2+=2*s*s;}return tr>0?tr2/(tr*tr):NaN;}
+function computeView(k){
+  const S=ST[k],D=S.data;S.view=null;if(!D)return;
+  const T=TAB[k],o=T.opts(),M=model(),y=T.y(D,o),f=T.shape(M,D,o),w=weights(y,o.wt),V={o,M};
+  if(T.linear){V.ab=project(f,y,w,o.bg);V.pred=Float64Array.from(f,v=>V.ab.A*v+V.ab.B);}else V.pred=f;
+  V.res=Float64Array.from(y,(v,i)=>v-V.pred[i]);
+  let ss=0,st=0,my=0;for(const v of y)my+=v/y.length;for(let i=0;i<y.length;i++){ss+=V.res[i]**2;st+=(y[i]-my)**2;}
+  V.R2=1-ss/st;V.rms=Math.sqrt(ss/y.length);
+  const dense=(x0,x1,n,fn)=>{const X=[],Y=[];for(let i=0;i<n;i++){const x=x0+(x1-x0)*i/(n-1);X.push(x);Y.push(fn(x));}return {X,Y};};
+  if(k==='spec'){const [x0,x1]=rng(D.x);V.curve=dense(x0,x1,700,x=>V.ab.A*pmAt(M,x,M.T,o.arm,o.res)+V.ab.B);
+    const pk=peakWidth(V.curve.X,V.curve.Y.map(v=>v-V.ab.B)),dpk=peakWidth(D.x,D.y);V.der=[['Model peak',fx(pk.xp,3)+' nm'],['Model FWHM',fx(pk.fw,3)+' nm'],['Data FWHM',fx(dpk.fw,3)+' nm'],['Partner at peak',fx(1000/(M.sp-1000/pk.xp),2)+' nm']];}
+  else if(k==='temp'&&o.mode==='cnt'){const [t0,t1]=rng(D.T);V.curve=dense(t0,t1,600,t=>V.ab.A*pmAt(M,o.fl,t+M.dT,o.arm,o.fw)+V.ab.B);
+    const pk=peakWidth(V.curve.X,V.curve.Y.map(v=>v-V.ab.B));V.der=[['Model peak',fx(pk.xp,3)+' °C (oven reading)'],['Model FWHM',fx(pk.fw,3)+' °C'],['Crystal T at peak',fx(pk.xp+M.dT,3)+' °C']];}
+  else if(k==='temp'){const [t0,t1]=rng(D.T),pad=Math.max(2,(t1-t0)*0.1),pts={T:[],a:[],p:[]},lam=D.l.map(v=>1000/v),[s0,s1]=rng(lam),span=Math.max(s1-s0,0.002);
+    for(let i=0;i<160;i++){const t=t0-pad+(t1-t0+2*pad)*i/159,tt=t+M.dT,g=s=>{const [a,b]=pairOf(M,o.arm,s);return dkM(M,a,b,tt);},lo=s0-span,hi=s1+span;let pv=g(lo),ps=lo;
+      for(let j=1;j<=300;j++){const s=lo+(hi-lo)*j/300,v=g(s);if(pv*v<=0){const r=bisect(g,ps,s,pv);pts.T.push(t);pts.a.push(1000/r);pts.p.push(1000/(M.sp-r));}pv=v;ps=s;}}
+    V.tune=pts;V.x0=t0-pad;V.x1=t1+pad;
+    const tm=(t0+t1)/2,sA=rootNear(M,o.arm,1000/D.l[Math.floor(D.l.length/2)],tm+M.dT),sB=rootNear(M,o.arm,sA,tm+M.dT+0.5);
+    V.der=[['Tuning slope',fx((1000/sB-1000/sA)/0.5,4)+' nm/°C at '+fx(tm,1)+' °C'],['RMS residual',fx(V.rms*1000,1)+' pm']];}
+  else{const Jd=new Float64Array(D.n),Jm=new Float64Array(D.n),B=V.ab.B;for(let i=0;i<D.n;i++){Jd[i]=Math.sqrt(Math.max(0,D.Z[i]-B));Jm[i]=Math.sqrt(Math.max(0,f[i]));}
+    let sd=0,sm=0,sx=0;for(let i=0;i<D.n;i++){sd+=Jd[i]**2;sm+=Jm[i]**2;sx+=Jd[i]*Jm[i];}
+    const pd=purity(Jd,D.nx,D.ny),pm=purity(Jm,D.nx,D.ny);V.zmax=0;for(const v of D.Z)if(v>V.zmax)V.zmax=v;
+    V.der=[['Purity (model)',fx(pm,3)+' · K = '+fx(1/pm,2)],['Purity (data, flat phase)',fx(pd,3)+' · K = '+fx(1/pd,2)],['Overlap data/model',fx(sx/Math.sqrt(sd*sm),4)]];
+    if(M.bw===0)V.der.push(['Note','Pump BW is 0: the model JSA is a line. Set BW or tick it.']);}
+  S.view=V;
+}
+
+// ---------- results table ----------
+function renderRes(k){
+  const S=ST[k],F=S.fit,V=S.view,el=$(k+'-res-tab');
+  if(!S.data){el.innerHTML='<p class="cap">Load or paste data, or press Example.</p>';return;}
+  let h='<table class="res"><thead><tr><th>Parameter</th><th>Start</th><th>Fit</th><th>± 1σ</th><th></th></tr></thead><tbody>';
+  if(F){F.keys.forEach((p,i)=>{const d=PAR[p],sd=Math.max(d.d,F.sig[i]>0?Math.min(8,1-Math.floor(Math.log10(F.sig[i]))):d.d);
+      h+='<tr><td>'+d.l+'</td><td>'+(i<F.start.length?fx(F.start[i],d.d):'–')+'</td><td><b>'+fx(F.val[i],sd)+'</b></td><td>'+fx(F.sig[i],sd)+'</td><td>'+d.u+'</td></tr>';});}
+  else{const keys=freeKeys(k);keys.forEach(p=>{const d=PAR[p];h+='<tr><td>'+d.l+'</td><td>'+fx(getP(p),d.d)+'</td><td>–</td><td>–</td><td>'+d.u+'</td></tr>';});
+    if(V&&V.ab){h+='<tr><td>'+PAR.A.l+'</td><td>–</td><td>'+fx(V.ab.A,2)+'</td><td>–</td><td></td></tr>';if(V.o.bg)h+='<tr><td>'+PAR.B.l+'</td><td>–</td><td>'+fx(V.ab.B,2)+'</td><td>–</td><td></td></tr>';}}
+  h+='</tbody></table><div class="kv">';
+  if(F)h+='<span><b>N</b> '+F.N+'</span><span><b>'+(F.wt==='poisson'?'χ²ᵣ':'Residual variance')+'</b> '+fx(F.s2,F.s2<10?3:1)+'</span>';
+  if(V)h+='<span><b>R²</b> '+fx(V.R2,5)+'</span>';
+  if(F)h+='<span><b>Iterations</b> '+F.it+' · '+fx(F.ms/1000,2)+' s</span>';
+  if(V&&V.der)V.der.forEach(([a,b])=>{h+='<span><b>'+a+'</b> '+b+'</span>';});
+  el.innerHTML=h+'</div>'+(F?'':'<p class="cap">Showing the current model. Press Fit to optimise the ticked parameters.</p>');
+}
+
+// ---------- plots ----------
+function xyPanel(ctx,C,r,o){
+  const rh=Math.round((r.h-10)*0.27),rm={x:r.x,y:r.y,w:r.w,h:r.h-10-rh},rr={x:r.x,y:r.y+rm.h+10,w:r.w,h:rh};
+  let y0=Infinity,y1=-Infinity;for(const s of o.pts.concat(o.lines))for(const v of s.y)if(Number.isFinite(v)){if(v<y0)y0=v;if(v>y1)y1=v;}
+  const pad=(y1-y0)*0.06||1;y0-=pad;y1+=pad;
+  const M=frame(ctx,C,rm,o.x0,o.x1,y0,y1,{yl:o.yl,ylx:r.x-50,nx:o.nx||5,ny:4,nox:true});
+  o.pts.forEach(s=>dots(ctx,M,s.x,s.y,s.col,s.rad||2,rm));
+  o.lines.forEach(s=>path(ctx,M,s.x,s.y,s.col,s.lw||1.8,s.dash,rm));
+  let m=1e-12;for(const v of o.res.y)if(Number.isFinite(v)&&Math.abs(v)>m)m=Math.abs(v);m*=1.15;
+  const R=frame(ctx,C,rr,o.x0,o.x1,-m,m,{xl:o.xl,yl:'Res.',ylx:r.x-50,nx:o.nx||5,ny:2});
+  hline(ctx,R,rr,0,C.line,[3,3]);dots(ctx,R,o.res.x,o.res.y,C.muted,1.5,rr);
+}
+function emptyPlot(cv,C,t){const {ctx,w,h}=prep(cv),r={x:58,y:10,w:w-70,h:h-46};frame(ctx,C,r,0,1,0,1,{nox:true,noy:true,nogrid:true});note(ctx,C,r,t);}
+function drawSpec(C){
+  const cv=$('cv-spec'),S=ST.spec,D=S.data,V=S.view;if(!D||!V)return emptyPlot(cv,C,'Load a spectrum to fit');
+  const {ctx,w,h}=prep(cv),[x0,x1]=rng(D.x);
+  xyPanel(ctx,C,{x:62,y:10,w:w-74,h:h-46},{x0,x1,pts:[{x:D.x,y:D.y,col:V.o.arm==='s'?C.sig:C.idl,rad:1.9}],lines:[{x:V.curve.X,y:V.curve.Y,col:C.pump}],
+    res:{x:D.x,y:V.res},xl:(V.o.arm==='s'?'Signal':'Idler')+' wavelength (nm)',yl:'Counts'});
+}
+function drawTemp(C){
+  const cv=$('cv-temp'),S=ST.temp,D=S.data,V=S.view;if(!D||!V)return emptyPlot(cv,C,'Load a temperature scan to fit');
+  const {ctx,w,h}=prep(cv),o=V.o,ac=o.arm==='s'?C.sig:C.idl,pc=o.arm==='s'?C.idl:C.sig;
+  if(o.mode==='cnt'){const [x0,x1]=rng(D.T);
+    xyPanel(ctx,C,{x:62,y:10,w:w-74,h:h-46},{x0,x1,pts:[{x:D.T,y:D.y,col:ac,rad:1.9}],lines:[{x:V.curve.X,y:V.curve.Y,col:C.pump}],res:{x:D.T,y:V.res},xl:'Oven temperature (°C)',yl:'Counts'});return;}
+  const n=D.T.length,ra=Array.from(V.res).slice(0,n),two=D.np>0&&w>520,gap=two?64:0,pw=(w-74-gap)/(two?2:1);
+  xyPanel(ctx,C,{x:62,y:10,w:pw,h:h-46},{x0:V.x0,x1:V.x1,pts:[{x:V.tune.T,y:V.tune.a,col:C.pump,rad:1.1},{x:D.T,y:D.l,col:ac,rad:2.8}],lines:[],res:{x:D.T,y:ra},
+    xl:'Oven temperature (°C)',yl:(o.arm==='s'?'Signal':'Idler')+' λ (nm)'});
+  if(two){const Tp=[],Lp=[],Rp=[];let j=n;D.T.forEach((t,i)=>{if(Number.isFinite(D.p[i])){Tp.push(t);Lp.push(D.p[i]);Rp.push(V.res[j++]);}});
+    const keep=V.tune.p.map((v,i)=>i).filter(i=>{const [a,b]=rng(Lp),s=Math.max(b-a,1);return V.tune.p[i]>a-s&&V.tune.p[i]<b+s;});
+    xyPanel(ctx,C,{x:62+pw+gap,y:10,w:pw,h:h-46},{x0:V.x0,x1:V.x1,pts:[{x:keep.map(i=>V.tune.T[i]),y:keep.map(i=>V.tune.p[i]),col:C.pump,rad:1.1},{x:Tp,y:Lp,col:pc,rad:2.8}],lines:[],res:{x:Tp,y:Rp},
+      xl:'Oven temperature (°C)',yl:(o.arm==='s'?'Idler':'Signal')+' λ (nm)'});}
+}
+function jsiRect(w,h){const side=Math.max(60,Math.min(w-70,h-46));return {x:58+Math.max(0,(w-70-side)/2),y:10,w:side,h:side};}
+function drawJSIMap(id,C,kind){
+  const cv=$(id),S=ST.jsi,D=S.data,V=S.view;if(!D||!V)return emptyPlot(cv,C,'Load a JSI to fit');
+  const {ctx,w,h}=prep(cv),r=jsiRect(w,h),nx=D.nx,ny=D.ny,z=V.zmax||1,row=i=>(ny-1-Math.floor(i/nx))*nx+i%nx;
+  if(kind==='r'){const b=hex(C.panel),p=hex(C.sig),n=hex(C.idl);
+    paint(ctx,r,nx,ny,i=>{const j=row(i),t=Math.max(-1,Math.min(1,V.res[j]/z*2)),c=t>=0?p:n,a=Math.abs(t);return [b[0]+(c[0]-b[0])*a,b[1]+(c[1]-b[1])*a,b[2]+(c[2]-b[2])*a];});}
+  else{const cm=cmapOf(C),src=kind==='d'?D.Z:V.pred;paint(ctx,r,nx,ny,i=>cm(Math.max(0,src[row(i)])/z));}
+  const sw=V.o.swap;frame(ctx,C,r,D.xs[0],D.xs[nx-1],D.ys[0],D.ys[ny-1],{xl:(sw?'Idler':'Signal')+' λ (nm)',yl:(sw?'Signal':'Idler')+' λ (nm)',nx:3,ny:3,nogrid:true});
+}
+const PLOTS={spec:['cv-spec','Spectrum fit',drawSpec],temp:['cv-temp','Temperature fit',drawTemp],
+  'jsi-d':['cv-jsi-d','Measured JSI',C=>drawJSIMap('cv-jsi-d',C,'d')],'jsi-m':['cv-jsi-m','Model JSI',C=>drawJSIMap('cv-jsi-m',C,'m')],'jsi-r':['cv-jsi-r','JSI residual',C=>drawJSIMap('cv-jsi-r',C,'r')]};
+const cur=()=>radio('tab');
+function draw(){const C=tok(),k=cur();if(k==='jsi'){PLOTS['jsi-d'][2](C);PLOTS['jsi-m'][2](C);PLOTS['jsi-r'][2](C);}else PLOTS[k][2](C);}
+
+// ---------- refresh ----------
+function rackNote(){const M=model();$('t2field').hidden=M.type!==2;
+  $('polnote').textContent=polTag(M.pol)+': pump '+M.pol[0]+' → signal '+M.pol[1]+' + idler '+M.pol[2];}
+function refresh(){rackNote();const k=cur();try{computeView(k);}catch(e){ST[k].view=null;$(k+'-msg').textContent='Model error: '+e.message;}renderRes(k);draw();}
+let tmr=0;const sched=()=>{clearTimeout(tmr);tmr=setTimeout(refresh,30);};
+['lp','bw','per','ord','Tn','Ln','spec-res','spec-wt','spec-bg','temp-fl','temp-fw','temp-wt','temp-bg','jsi-wt','jsi-bg'].forEach(id=>$(id).addEventListener('input',sched));
+['spec-arm','temp-arm','jsi-ax'].forEach(n=>document.querySelectorAll('input[name="'+n+'"]').forEach(e=>e.addEventListener('change',sched)));
+function setMode(){const cnt=radio('temp-mode')==='cnt';document.querySelectorAll('.cnt-only').forEach(e=>e.hidden=!cnt);
+  $('temp-hint').textContent=cnt?'Two columns: oven temperature (°C), counts through a filter at the centre wavelength below.':'Columns: oven temperature (°C), measured wavelength (nm), and optionally the partner photon wavelength (nm).';
+  $('temp-data').placeholder=cnt?'# T_C, counts\n48.0, 120\n48.1, 180\n…':'# T_C, signal_nm, idler_nm\n40.0, 1532.1, 1568.4\n42.0, 1536.9, 1563.5\n…';
+  $('temp-title').textContent=cnt?'Temperature acceptance fit':'Temperature tuning fit';
+  $('temp-lg').innerHTML=cnt?'<span><i style="background:var(--sig)"></i>data</span><span><i style="background:var(--pump)"></i>model</span>':'<span><i style="background:var(--sig)"></i>signal</span><span><i style="background:var(--idl)"></i>idler</span><span><i style="background:var(--pump)"></i>model Δk = 0</span>';
+  $('temp-cap').textContent=cnt?'A · sinc²(Δk(λ_f, T + ΔT) L/2) + B, averaged over the filter band.':'Collinear Δk = 0 solutions at T + ΔT; residuals are data − model in nm.';
+  buildFree('temp');ST.temp.fit=null;load('temp');}
+document.querySelectorAll('input[name="temp-mode"]').forEach(e=>e.addEventListener('change',setMode));
+function fitPeriod(){const M=model(),ls=+$('ls').value;if(!(ls>M.lpnm*1.001)){$('msg').textContent='Design signal must be longer than the pump.';return;}
+  const ss=1000/ls,si=M.sp-ss;$('per').value=(TP*M.m/Math.abs(kmis(ss,si,M.T,M.pol))/perT(1,M.T)).toFixed(4);$('msg').textContent='';refresh();}
+$('fitP').addEventListener('click',fitPeriod);
+document.querySelectorAll('input[name="type"],input[name="t2"]').forEach(e=>e.addEventListener('change',fitPeriod));
+function showTab(k){document.querySelectorAll('.tabpane').forEach(p=>p.hidden=p.id!=='pane-'+k);try{history.replaceState(null,'','#'+k);}catch(e){}refresh();}
+document.querySelectorAll('input[name="tab"]').forEach(e=>e.addEventListener('change',()=>showTab(e.value)));
+
+// ---------- downloads ----------
+function paramLine(){const M=model();return 'λp '+fx(M.lpnm,3)+' nm · '+['Type-0','Type-I','Type-II'][M.type]+' ('+polTag(M.pol)+') · m = '+M.m+' · Λ₀ '+fx(M.L0,4)+' µm · '+fx(M.T,2)+' °C · L '+fx(M.Lmm,2)+' mm'+(M.bw>0?' · pump '+fx(M.bw,3)+' nm':'')+(DT?' · ΔT '+fx(DT,3)+' °C':'');}
+const slug=k=>'ppln_bench_'+k+'_'+polTag(model().pol);
+function fitHeader(k){const F=ST[k].fit,L=['# PPLN SPDC Bench · experimental fit ('+k+')','# model: '+paramLine()];
+  if(F){F.keys.forEach((p,i)=>L.push('# '+PAR[p].l+' = '+F.val[i]+' ± '+F.sig[i]+' '+PAR[p].u));L.push('# N = '+F.N+', '+(F.wt==='poisson'?'reduced chi2':'residual variance')+' = '+F.s2);}
+  return L;}
+function dataCSV(k){const S=ST[k],D=S.data,V=S.view,L=fitHeader(k);
+  if(k==='spec'){L.push('wavelength_nm,counts,model,residual');D.x.forEach((x,i)=>L.push(x+','+D.y[i]+','+V.pred[i].toPrecision(8)+','+V.res[i].toPrecision(6)));}
+  else if(k==='temp'&&V.o.mode==='cnt'){L.push('T_C,counts,model,residual');D.T.forEach((t,i)=>L.push(t+','+D.y[i]+','+V.pred[i].toPrecision(8)+','+V.res[i].toPrecision(6)));}
+  else if(k==='temp'){L.push('T_C,lambda_nm,model_nm,residual_nm,partner_nm,partner_model_nm,partner_residual_nm');let j=D.T.length;
+    D.T.forEach((t,i)=>{let row=t+','+D.l[i]+','+V.pred[i].toFixed(5)+','+V.res[i].toFixed(5);if(Number.isFinite(D.p[i])){row+=','+D.p[i]+','+V.pred[j].toFixed(5)+','+V.res[j].toFixed(5);j++;}else row+=',,,';L.push(row);});}
+  else{L.push('x_nm,y_nm,counts,model,residual');for(let r=0;r<D.ny;r++)for(let c=0;c<D.nx;c++){const i=r*D.nx+c;L.push(D.xs[c]+','+D.ys[r]+','+D.Z[i]+','+V.pred[i].toPrecision(6)+','+V.res[i].toPrecision(5));}}
+  return [slug(k)+'_fit.csv',new Blob([L.join('\n')+'\n'],{type:'text/csv'})];}
+document.querySelectorAll('[data-png]').forEach(b=>b.addEventListener('click',async()=>{const key=b.dataset.png,k=key.split('-')[0];if(!ST[k].view)return;
+  const [id,title,fn]=PLOTS[key],[n,blob]=await figPNG({cv:$(id),title,draw:fn,foot:paramLine(),name:slug(k)+'_'+key+'.png',redraw:draw});saveFile(n,blob,$(k+'-msg'));}));
+document.querySelectorAll('[data-csv]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.csv;if(!ST[k].view)return;const [n,blob]=dataCSV(k);saveFile(n,blob,$(k+'-msg'));}));
+
+new ResizeObserver(()=>draw()).observe(document.querySelector('.out'));
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);}catch(e){}
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+buildFree('spec');buildFree('jsi');setMode();
+const h0=location.hash.slice(1);if(TAB[h0]){document.querySelector('input[name="tab"][value="'+h0+'"]').checked=true;}
+fitPeriod();showTab(cur());
+})();
+</script>
+</body>
+</html>

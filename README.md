@@ -4,7 +4,7 @@ Interactive browser simulator for spontaneous parametric down-conversion (SPDC) 
 
 Live at https://abhayasd555.github.io/ppln-spdc-bench/
 
-`index.html` is the landing page and `simulator.html` is the simulator; both share `styles.css`. There is no build step, so open the files in a browser or serve the folder.
+`index.html` is the landing page, `simulator.html` is the simulator and `bench.html` is the experimental bench for fitting measured data. They share `styles.css`, and the two tools share the physics and plotting code in `core.js`. There is no build step, so open the files in a browser or serve the folder.
 
 ## Features
 
@@ -14,6 +14,14 @@ Live at https://abhayasd555.github.io/ppln-spdc-bench/
 - Readouts: period at T, signal/idler wavelengths, CW bandwidth, temperature acceptance, d_eff, spectral purity (Schmidt K)
 - Plots: phase-matching spectrum, temperature tuning curve, joint spectral intensity, temperature acceptance
 - Downloads: each plot as a high-resolution PNG or its data as CSV, or all four plots in one PNG
+
+## Experimental bench
+
+- Spectrum: fits A · sinc²(Δk L/2) + B to a measured signal or idler spectrum, averaged over the pump bandwidth and spectrometer resolution
+- Temperature: fits a tuning curve (λ vs T, with the optional partner wavelength) for Λ₀, pump λ and an oven offset ΔT, or an acceptance scan (counts vs T through a filter) for L and ΔT
+- JSI: fits a measured joint spectral intensity matrix for T, L, pump bandwidth, pump λ and Λ₀, and reports model and data purity and the data/model overlap
+- Levenberg–Marquardt fit of the parameters you tick, with A and B solved linearly, 1σ errors from the covariance, Poisson weighting and correlation warnings
+- Auto guess for starting values, Example buttons that generate synthetic data with known parameters, and PNG/CSV export of data, model and residuals
 
 ## Model
 

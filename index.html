@@ -7,7 +7,7 @@
 <meta name="description" content="Interactive simulator for spontaneous parametric down-conversion in MgO:PPLN: quasi-phase-matching, temperature tuning, joint spectral intensity and purity.">
 <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
 <nav class="nav" aria-label="Site">
@@ -15,8 +15,9 @@
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span>PPLN SPDC Bench</a>
     <div class="nav-links">
       <a href="simulator.html">Simulator</a>
+      <a href="bench.html"><span class="wide">Experimental bench</span><span class="narrow">Bench</span></a>
       <a href="simulator.html#model" class="opt">Model</a>
-      <a href="https://github.com/abhayasd555/ppln-spdc-bench" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/abhayasd555/ppln-spdc-bench" target="_blank" rel="noopener" class="opt">GitHub</a>
     </div>
   </div>
 </nav>
@@ -28,7 +29,7 @@
   <p class="tagline">Design a down-conversion source in PPLN. Phase matching, temperature tuning and spectral purity are computed live in your browser.</p>
   <div class="hero-cta">
     <a class="pill" href="simulator.html">Open the simulator</a>
-    <a class="link" href="simulator.html#model">How it works</a>
+    <a class="link" href="bench.html">Fit your data</a>
   </div>
 </header>
 
@@ -39,6 +40,7 @@
   <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sig)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M4 19c3 0 4-14 8-14s5 14 8 14"/></svg><h3>Phase matching</h3><p>See the sinc² phase-matching spectrum of signal and idler for any pump, period and crystal length.</p></div>
   <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="var(--idl)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14V5a2 2 0 1 1 4 0v9"/><circle cx="12" cy="17" r="3.5"/></svg><h3>Temperature tuning</h3><p>Trace collinear solutions across a 20–200 °C oven, and find the temperature or period that hits your target.</p></div>
   <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pump)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 16 16 8"/></svg><h3>Joint spectrum & purity</h3><p>Map the joint spectral intensity for a CW or pulsed pump, with spectral purity and Schmidt number.</p></div>
+  <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sig)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="15" r="1.3"/><circle cx="9" cy="9" r="1.3"/><circle cx="14" cy="7" r="1.3"/><circle cx="19" cy="12" r="1.3"/><path d="M3 18c4-12 13-14 18-4"/></svg><h3>Fit your data</h3><p>On the <a href="bench.html">experimental bench</a>, load a measured spectrum, temperature scan or JSI and fit T, L, Λ₀ and pump bandwidth with error bars.</p></div>
   <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><h3>Export</h3><p>Download any plot as a high-resolution PNG, or its data as CSV, ready for a paper or lab notebook.</p></div>
   </div>
   <div class="closing"><a class="pill" href="simulator.html">Open the simulator</a></div>
